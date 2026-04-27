@@ -11,7 +11,7 @@ startCommand:
 
 name: hive-mcp-mining
 displayName: HiveMining — Bitcoin hashrate routing + Boltz BTC↔USDC payout
-version: "1.0.0"
+version: "1.1.0"
 description: >
   Bitcoin hashrate routing across Tether MDK fleets and the Hive auction.
   Bortlesboat-attributed fee intel (real Base USDC settlement of every
@@ -44,6 +44,7 @@ categories:
   - agent-to-agent
   - infrastructure
   - web3
+  - mining-orchestrate
 
 tags:
   - mcp

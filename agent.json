@@ -1,0 +1,144 @@
+{
+  "@context": [
+    "https://schema.org",
+    "https://hivemorph.onrender.com/v1/a2a/context"
+  ],
+  "@type": "Service",
+  "name": "hive-mcp-mining",
+  "version": "1.1.0",
+  "description": "MCP server for the Hive Mining vertical. 11 tools covering Bitcoin hashrate routing (Tether MDK fleets + Hive auction), Bortlesboat-attributed fee intel, Boltz BTC↔USDC payout, and 3 new MOS orchestration tools (mos.query_hashrate, mos.query_payouts, mos.book_hashrate).",
+  "url": "https://github.com/srotzin/hive-mcp-mining",
+  "provider": {
+    "@type": "Organization",
+    "name": "Hive",
+    "url": "https://hivemorph.onrender.com",
+    "email": "hive@hivemorph.ai"
+  },
+  "license": "https://opensource.org/licenses/MIT",
+  "brand": {
+    "color": "#C08D23"
+  },
+  "capabilities": [
+    "mining-orchestrate",
+    "hashrate-routing",
+    "boltz-btc-usdc",
+    "fee-intel",
+    "x402",
+    "a2a",
+    "mcp"
+  ],
+  "x402": {
+    "settle_chain": "base",
+    "settle_asset": "USDC",
+    "treasury": "0x15184bf50b3d3f52b60434f8942b7d52f2eb436e",
+    "routing_fee_rate": 0.02,
+    "pricing": {
+      "mos.query_hashrate": {
+        "tier": "Tier1",
+        "price_usd": 0.001,
+        "backend": "GET /v1/mining/orchestrate/sites"
+      },
+      "mos.query_payouts": {
+        "tier": "Tier1",
+        "price_usd": 0.001,
+        "backend": "GET /v1/mining/orchestrate/payouts"
+      },
+      "mos.book_hashrate": {
+        "tier": "Tier3",
+        "price_usd": 0.05,
+        "backend": "POST /v1/mining/book"
+      },
+      "book_hashrate": {
+        "tier": "Tier3",
+        "price_usd": 0.05,
+        "backend": "POST /v1/mining/book"
+      },
+      "bitcoin_fee_advice": {
+        "tier": "Tier2",
+        "price_usd": 0.02,
+        "backend": "GET /v1/mining/fee-intel"
+      },
+      "next_block_forecast": {
+        "tier": "Tier2",
+        "price_usd": 0.03,
+        "backend": "GET /v1/mining/next-block-advice"
+      }
+    }
+  },
+  "a2a": {
+    "card_url": "https://hivemorph.onrender.com/v1/mining/orchestrate/health",
+    "mcp_endpoint": "https://hive-mcp-gateway.onrender.com/mining/mcp",
+    "protocol": "2024-11-05",
+    "transport": "streamable-http",
+    "catalog": "https://hivemorph.onrender.com/v1/earn/catalog",
+    "mos_plugin": "https://github.com/srotzin/hive-mos-plugin"
+  },
+  "tools": [
+    {
+      "name": "mos.query_hashrate",
+      "tier": "Tier1",
+      "price_usd": 0.001,
+      "description": "Query operator MOS sites and latest hashrate telemetry"
+    },
+    {
+      "name": "mos.query_payouts",
+      "tier": "Tier1",
+      "price_usd": 0.001,
+      "description": "Get operator pending USDC payout balance"
+    },
+    {
+      "name": "mos.book_hashrate",
+      "tier": "Tier3",
+      "price_usd": 0.05,
+      "description": "Book hashrate demand (buyer_did, th_per_day, max_price_usdc)"
+    },
+    {
+      "name": "list_rigs",
+      "tier": "Tier0",
+      "price_usd": 0.0,
+      "description": "List all active MDK + auction mining workers"
+    },
+    {
+      "name": "quote_hashrate",
+      "tier": "Tier0",
+      "price_usd": 0.0,
+      "description": "Rank destinations for a fleet (fee taken at book)"
+    },
+    {
+      "name": "book_hashrate",
+      "tier": "Tier3",
+      "price_usd": 0.05,
+      "description": "Book hashrate against a worker (2% routing fee)"
+    },
+    {
+      "name": "mining_pnl",
+      "tier": "Tier0",
+      "price_usd": 0.0,
+      "description": "Cumulative routing fee P&L"
+    },
+    {
+      "name": "bitcoin_fee_advice",
+      "tier": "Tier2",
+      "price_usd": 0.02,
+      "description": "Bortlesboat fee landscape (real USDC settlement)"
+    },
+    {
+      "name": "next_block_forecast",
+      "tier": "Tier2",
+      "price_usd": 0.03,
+      "description": "Next-block forecast with auction state + Bortlesboat"
+    },
+    {
+      "name": "payout_btc_to_usdc",
+      "tier": "Tier0",
+      "price_usd": 0.0,
+      "description": "Boltz BTC→USDC reverse swap (40bps spread fee)"
+    },
+    {
+      "name": "mining_economics",
+      "tier": "Tier0",
+      "price_usd": 0.0,
+      "description": "Today and cumulative routing revenue + data spend"
+    }
+  ]
+}

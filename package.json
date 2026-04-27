@@ -1,7 +1,7 @@
 {
   "name": "hive-mcp-mining",
-  "version": "1.0.0",
-  "description": "MCP server for the Hive Mining vertical. 8 tools wrap the Bitcoin hashrate routing core (Tether MDK fleets + Hive auction), Bortlesboat-attributed fee intel ($0.02/$0.03), and a Boltz BTC↔USDC reverse swap so callers never hand BTC to a custodian. Real rails — no mocks. Three gates (NEED + YIELD + CLEAN-MONEY) on every booking.",
+  "version": "1.1.0",
+  "description": "MCP server for the Hive Mining vertical. 11 tools: 8 existing (hashrate routing, Boltz BTC↔USDC payout, Bortlesboat fee intel) + 3 new MOS tools (mos.query_hashrate, mos.query_payouts, mos.book_hashrate) wrapping the Tether MiningOS orchestration layer. Real rails — no mocks. Three gates on every booking.",
   "type": "module",
   "main": "server.js",
   "bin": {

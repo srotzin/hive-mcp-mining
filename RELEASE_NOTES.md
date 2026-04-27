@@ -1,3 +1,58 @@
+# hive-mcp-mining v1.1.0
+
+**MOS Orchestration tools — 3 new MCP tools wrapping the Tether MiningOS (MOS) layer.**
+
+## What's new in 1.1.0
+
+3 new MCP tools added (total: 11):
+
+| Tool | Endpoint | Tier | Price |
+|------|----------|------|-------|
+| `mos.query_hashrate` | `GET /v1/mining/orchestrate/sites` | Tier1 | $0.001 |
+| `mos.query_payouts` | `GET /v1/mining/orchestrate/payouts` | Tier1 | $0.001 |
+| `mos.book_hashrate` | `POST /v1/mining/book` | Tier3 | $0.05 |
+
+### MOS tool details
+
+- **`mos.query_hashrate(operator_did)`** — Returns registered MOS sites and latest telemetry (hashrate_th_s, workers, temperature, power, efficiency) from the Hive orchestration layer. Read-only, Tier1.
+- **`mos.query_payouts(operator_did)`** — Returns pending USDC payout balance from the earn rails ledger, settle_chain=base, settle_asset=USDC, payout threshold. Read-only, Tier1.
+- **`mos.book_hashrate(buyer_did, th_per_day, max_price_usdc)`** — Books hashrate demand via the existing `/v1/mining/book` route. Applies 3 gates (NEED + YIELD + CLEAN-MONEY), 2% routing fee, real EIP-191 receipt.
+
+### Updated A2A card / agent.json
+
+- x402 metadata (price per call, treasury address, settle_chain=base, settle_asset=USDC)
+- OAC JSON-LD (schema.org/Service)
+- `mining-orchestrate` capability tag
+- Brand gold `#C08D23`
+
+### How to register an MOS operator
+
+```bash
+# 1. Register your MOS instance (Tier3, $0.05)
+curl -X POST https://hivemorph.onrender.com/v1/mining/orchestrate/register \
+  -H 'Content-Type: application/json' \
+  -d '{"operator_did": "did:key:YOUR_DID", "mos_endpoint": "https://your-mos.example.com", "sites": ["site-a"], "wallet_addr": "0xYOUR_WALLET"}'
+
+# 2. Push telemetry (Tier3, $0.05)
+curl -X POST https://hivemorph.onrender.com/v1/mining/orchestrate/sites/sync \
+  -H 'Content-Type: application/json' \
+  -d '{"operator_did": "did:key:YOUR_DID", "site_id": "site-a", "batch_ts": 1714220000, "telemetry": {"hashrate_th_s": 100}}'
+
+# 3. Check payout balance (Tier1, $0.001)
+curl https://hivemorph.onrender.com/v1/mining/orchestrate/payouts?operator_did=did:key:YOUR_DID
+```
+
+Or use the one-line Docker plugin: [`srotzin/hive-mos-plugin`](https://github.com/srotzin/hive-mos-plugin)
+
+### Smithery listing
+
+To list on [Smithery](https://smithery.ai):
+1. Fork or submit to the Smithery registry with the `smithery.yaml` in this repo.
+2. Gateway URL: `https://hive-mcp-gateway.onrender.com/mining/mcp`
+3. Capability tag: `mining-orchestrate`
+
+---
+
 # hive-mcp-mining v1.0.0
 
 **Bitcoin hashrate routing + Boltz BTC↔USDC payout — public MCP shim for the Hive Mining vertical.**
