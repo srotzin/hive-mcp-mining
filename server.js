@@ -180,7 +180,7 @@ const SERVICE_CFG = {
   tagline: "Hashrate routing, MOS telemetry, Boltz BTC\u2194USDC swap. Real rails, three gates.",
   description: "MCP server for HiveMining \u2014 mining intelligence and DePIN hashrate routing on the Hive Civilization. 11 tools: hashrate routing, Boltz BTC\u2194USDC payout, Bortlesboat fee intel, plus MOS hashrate / payouts / booking. USDC/USDT settlement on Base, Ethereum, or Solana. Real rails.",
   keywords: ["mcp", "model-context-protocol", "x402", "agentic", "ai-agent", "ai-agents", "llm", "hive", "hive-civilization", "depin", "mining-intelligence", "hashrate-analytics", "mining-os", "mos", "boltz", "atomic-swap", "btc", "usdc", "usdt", "base", "base-l2", "agent-economy", "a2a"],
-  externalUrl: "https://hive-mcp-gateway.onrender.com/mining",
+  externalUrl: "https://hive-mcp-mining.onrender.com",
   gatewayMount: "/mining",
   version: "1.1.1",
   pricing: [
