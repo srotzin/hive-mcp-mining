@@ -21,6 +21,7 @@
  */
 
 import express from 'express';
+import { renderLanding, renderRobots, renderSitemap, renderSecurity, renderOgImage, seoJson, BRAND_GOLD } from './meta.js';
 
 const app = express();
 app.use(express.json({ limit: '256kb' }));
@@ -171,6 +172,25 @@ const TOOLS = [
   },
 ];
 
+
+const SERVICE_CFG = {
+  service: "hive-mcp-mining",
+  shortName: "HiveMining",
+  title: "HiveMining \u00b7 Mining Intelligence & DePIN Hashrate Routing MCP",
+  tagline: "Hashrate routing, MOS telemetry, Boltz BTC\u2194USDC swap. Real rails, three gates.",
+  description: "MCP server for HiveMining \u2014 mining intelligence and DePIN hashrate routing on the Hive Civilization. 11 tools: hashrate routing, Boltz BTC\u2194USDC payout, Bortlesboat fee intel, plus MOS hashrate / payouts / booking. USDC/USDT settlement on Base, Ethereum, or Solana. Real rails.",
+  keywords: ["mcp", "model-context-protocol", "x402", "agentic", "ai-agent", "ai-agents", "llm", "hive", "hive-civilization", "depin", "mining-intelligence", "hashrate-analytics", "mining-os", "mos", "boltz", "atomic-swap", "btc", "usdc", "usdt", "base", "base-l2", "agent-economy", "a2a"],
+  externalUrl: "https://hive-mcp-gateway.onrender.com/mining",
+  gatewayMount: "/mining",
+  version: "1.1.1",
+  pricing: [
+    { name: "mining_query_hashrate", priceUsd: 0, label: "Query hashrate \u2014 free" },
+    { name: "mining_route_hashrate", priceUsd: 0.005, label: "Route hashrate (Tier 2)" },
+    { name: "mining_book_hashrate", priceUsd: 0.05, label: "Book hashrate (Tier 3)" },
+    { name: "mining_btc_to_usdc", priceUsd: 0.05, label: "Boltz BTC\u2192USDC (Tier 3)" }
+  ],
+};
+SERVICE_CFG.tools = (typeof TOOLS !== 'undefined' ? TOOLS : []).map(t => ({ name: t.name, description: t.description }));
 // ─── HTTP helpers ────────────────────────────────────────────────────────────
 async function hiveGet(path, params = {}) {
   const url = new URL(`${HIVE_BASE}${path.startsWith('/') ? path : '/' + path}`);
@@ -354,6 +374,24 @@ app.get('/.well-known/mcp.json', (req, res) => res.json({
   tools: TOOLS.map(t => ({ name: t.name, description: t.description })),
 }));
 
+
+// HIVE_META_BLOCK_v1 — comprehensive meta tags + JSON-LD + crawler discovery
+app.get('/', (req, res) => {
+  res.type('text/html; charset=utf-8').send(renderLanding(SERVICE_CFG));
+});
+app.get('/og.svg', (req, res) => {
+  res.type('image/svg+xml').send(renderOgImage(SERVICE_CFG));
+});
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain').send(renderRobots(SERVICE_CFG));
+});
+app.get('/sitemap.xml', (req, res) => {
+  res.type('application/xml').send(renderSitemap(SERVICE_CFG));
+});
+app.get('/.well-known/security.txt', (req, res) => {
+  res.type('text/plain').send(renderSecurity());
+});
+app.get('/seo.json', (req, res) => res.json(seoJson(SERVICE_CFG)));
 app.listen(PORT, () => {
   console.log(`HiveMining MCP Server v1.1.0 running on :${PORT}`);
   console.log(`  Backend : ${HIVE_BASE}`);
