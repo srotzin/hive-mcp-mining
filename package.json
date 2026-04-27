@@ -1,0 +1,40 @@
+{
+  "name": "hive-mcp-mining",
+  "version": "1.0.0",
+  "description": "MCP server for the Hive Mining vertical. 8 tools wrap the Bitcoin hashrate routing core (Tether MDK fleets + Hive auction), Bortlesboat-attributed fee intel ($0.02/$0.03), and a Boltz BTC↔USDC reverse swap so callers never hand BTC to a custodian. Real rails — no mocks. Three gates (NEED + YIELD + CLEAN-MONEY) on every booking.",
+  "type": "module",
+  "main": "server.js",
+  "bin": {
+    "hive-mcp-mining": "./server.js"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "mcp",
+    "mining",
+    "bitcoin",
+    "mdk",
+    "tether",
+    "x402",
+    "hive-civilization",
+    "boltz",
+    "atomic-swap",
+    "ai-agents",
+    "a2a"
+  ],
+  "author": "Steve Rotzin <steve@thehiveryiq.com> (https://www.thehiveryiq.com)",
+  "license": "MIT",
+  "homepage": "https://hive-mcp-gateway.onrender.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/srotzin/hive-mcp-mining"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

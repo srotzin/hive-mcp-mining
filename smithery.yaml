@@ -1,0 +1,87 @@
+# Smithery Registry — HiveMining MCP Server
+# https://smithery.ai
+
+startCommand:
+  type: http
+  configSchema:
+    type: object
+    properties: {}
+    required: []
+  url: https://hive-mcp-gateway.onrender.com/mining/mcp
+
+name: hive-mcp-mining
+displayName: HiveMining — Bitcoin hashrate routing + Boltz BTC↔USDC payout
+version: "1.0.0"
+description: >
+  Bitcoin hashrate routing across Tether MDK fleets and the Hive auction.
+  Bortlesboat-attributed fee intel (real Base USDC settlement of every
+  upstream call, with consume_tx hashes for audit). Boltz reverse swap for
+  BTC → USDC on Base — atomic, so Hive never custodies BTC. Three gates
+  (NEED + YIELD + CLEAN-MONEY) enforced on every booking. 2% routing fee
+  at /book, 40bps spread fee on payouts. Real rails only — when a rail
+  cannot settle, the API returns HTTP 503 with rail_inactive or
+  swap_failed. No mocks.
+
+author:
+  name: Steve Rotzin
+  email: steve@thehiveryiq.com
+  url: https://www.thehiveryiq.com
+
+license: MIT
+homepage: https://hive-mcp-gateway.onrender.com
+repository:
+  type: git
+  url: https://github.com/srotzin/hive-mcp-mining
+
+transport: streamable-http
+endpoint: https://hive-mcp-gateway.onrender.com/mining/mcp
+protocol: "2024-11-05"
+
+categories:
+  - bitcoin
+  - mining
+  - depin
+  - agent-to-agent
+  - infrastructure
+  - web3
+
+tags:
+  - mcp
+  - mining
+  - bitcoin
+  - mdk
+  - tether
+  - x402
+  - hive-civilization
+  - boltz
+  - atomic-swap
+
+tools:
+  - name: list_rigs
+    description: List active Bitcoin mining workers (Tether MDK + Hive auction). Free.
+  - name: quote_hashrate
+    description: Rank destinations for a fleet against the current rig market. Free.
+  - name: book_hashrate
+    description: Book hashrate (3 gates, 2% routing fee, EIP-191 receipt). $0.05.
+  - name: mining_pnl
+    description: Cumulative routing fee P&L. Free.
+  - name: bitcoin_fee_advice
+    description: Bortlesboat fee landscape + nextblock candidate pool. $0.02.
+  - name: next_block_forecast
+    description: Auction state + Bortlesboat /ai/fees/advice. $0.03.
+  - name: payout_btc_to_usdc
+    description: Boltz reverse swap BTC → USDC on Base. 40bps spread fee. Free gate.
+  - name: mining_economics
+    description: Routing revenue + Bortlesboat data spend headroom. Free.
+
+runtime:
+  type: node
+  version: ">=18"
+  command: node server.js
+  env:
+    - name: PORT
+      default: "3000"
+      required: false
+    - name: HIVE_BASE
+      default: "https://hivemorph.onrender.com"
+      required: false
