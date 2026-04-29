@@ -42,7 +42,7 @@ const TOOLS = [
       properties: {
         operator_did: {
           type: 'string',
-          description: 'Operator DID (e.g. did:key:z6Mk...) to query sites for.',
+          description: 'Operator DID registered with Hive MOS (e.g. did:hive:miner-us-east-1 or did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK). Obtain via POST /v1/mining/orchestrate/operator/register or from your MOS fleet dashboard.',
         },
       },
     },
@@ -57,7 +57,7 @@ const TOOLS = [
       properties: {
         operator_did: {
           type: 'string',
-          description: 'Operator DID to check payout balance for.',
+          description: 'Operator DID registered with Hive earn rails (e.g. did:hive:miner-us-east-1 or did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK). Must match the DID used when registering with hive_onboard or orchestrate/operator/register.',
         },
       },
     },
@@ -361,6 +361,8 @@ app.get('/health', (req, res) => res.json({
     settle_asset: 'USDC',
     treasury: '0x15184bf50b3d3f52b60434f8942b7d52f2eb436e',
   },
+  boltz_status: process.env.HIVE_BOLTZ_ENABLED === '1' ? 'live' : 'inactive',
+  boltz_note: 'payout_btc_to_usdc available when boltz_status=live. Check this field before calling that tool.',
   a2a_card: `${HIVE_BASE}/v1/mining/orchestrate/health`,
   earn_catalog: `${HIVE_BASE}/v1/earn/catalog`,
 }));
