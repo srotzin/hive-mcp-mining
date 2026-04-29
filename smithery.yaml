@@ -1,4 +1,4 @@
-# Smithery Registry — HiveMining MCP Server
+# Smithery Registry — hive-mcp-mining
 # https://smithery.ai
 
 startCommand:
@@ -7,20 +7,19 @@ startCommand:
     type: object
     properties: {}
     required: []
-  url: https://hive-mcp-gateway.onrender.com/mining/mcp
+  url: https://hive-mcp-mining.onrender.com/mcp
 
 name: hive-mcp-mining
-displayName: HiveMining — Bitcoin hashrate routing + Boltz BTC↔USDC payout
-version: "1.1.0"
+displayName: Tether MOS Telemetry + Boltz BTC↔USDC Atomic Swap Broker — Hive Civilization
+version: "2.0.0"
 description: >
-  Bitcoin hashrate routing across Tether MDK fleets and the Hive auction.
-  Bortlesboat-attributed fee intel (real Base USDC settlement of every
-  upstream call, with consume_tx hashes for audit). Boltz reverse swap for
-  BTC → USDC on Base — atomic, so Hive never custodies BTC. Three gates
-  (NEED + YIELD + CLEAN-MONEY) enforced on every booking. 2% routing fee
-  at /book, 40bps spread fee on payouts. Real rails only — when a rail
-  cannot settle, the API returns HTTP 503 with rail_inactive or
-  swap_failed. No mocks.
+  Tether MOS site telemetry (read-only) and Boltz BTC↔USDC atomic swap broker
+  via the Hive Civilization. 5 doctrine-clean tools: MOS site queries, payout
+  queries, Bitcoin fee intel, next-block forecast, and Boltz BTC→USDC reverse
+  swap. Hive does NOT route hashrate. Hive does NOT custody BTC.
+  USDC settlement on Base L2. Real rails.
+  Reclass from hashrate routing per Hive supreme rules
+  (precedent: hive-swarm-trader → hive-swarm-signal-relay).
 
 author:
   name: Steve Rotzin
@@ -28,52 +27,48 @@ author:
   url: https://www.thehiveryiq.com
 
 license: MIT
-homepage: https://hive-mcp-gateway.onrender.com
+homepage: https://hive-mcp-mining.onrender.com
 repository:
   type: git
   url: https://github.com/srotzin/hive-mcp-mining
 
 transport: streamable-http
-endpoint: https://hive-mcp-gateway.onrender.com/mining/mcp
+endpoint: https://hive-mcp-mining.onrender.com/mcp
 protocol: "2024-11-05"
 
 categories:
   - bitcoin
-  - mining
-  - depin
+  - tether
+  - mos
+  - boltz
+  - atomic-swap
   - agent-to-agent
   - infrastructure
   - web3
-  - mining-orchestrate
 
 tags:
   - mcp
-  - mining
-  - bitcoin
-  - mdk
   - tether
-  - x402
-  - hive-civilization
+  - mos
   - boltz
   - atomic-swap
+  - btc
+  - usdc
+  - x402
+  - hive-civilization
+  - read-only-telemetry
 
 tools:
-  - name: list_rigs
-    description: List active Bitcoin mining workers (Tether MDK + Hive auction). Free.
-  - name: quote_hashrate
-    description: Rank destinations for a fleet against the current rig market. Free.
-  - name: book_hashrate
-    description: Book hashrate (3 gates, 2% routing fee, EIP-191 receipt). $0.05.
-  - name: mining_pnl
-    description: Cumulative routing fee P&L. Free.
+  - name: mos.query_sites
+    description: Query Tether MOS operator sites and telemetry. Read-only. $0.001.
+  - name: mos.query_payouts
+    description: Get operator pending USDC payout balance. Read-only. $0.001.
   - name: bitcoin_fee_advice
-    description: Bortlesboat fee landscape + nextblock candidate pool. $0.02.
+    description: Bortlesboat BTC mempool fee landscape + nextblock candidate pool. $0.02.
   - name: next_block_forecast
-    description: Auction state + Bortlesboat /ai/fees/advice. $0.03.
+    description: Next-block fee window forecast with Bortlesboat. $0.03.
   - name: payout_btc_to_usdc
-    description: Boltz reverse swap BTC → USDC on Base. 40bps spread fee. Free gate.
-  - name: mining_economics
-    description: Routing revenue + Bortlesboat data spend headroom. Free.
+    description: Boltz reverse swap BTC → USDC on Base. Atomic, no custody. 40bps spread.
 
 runtime:
   type: node

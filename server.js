@@ -1,23 +1,27 @@
 #!/usr/bin/env node
 /**
- * HiveMining MCP Server v1.1.0
- * Bitcoin hashrate routing across Tether MDK fleets + Hive auction.
- * Stage 1+2: routing core + Boltz BTC↔USDC payout (atomic swap, never custody).
+ * hive-mcp-mining — Tether MOS Telemetry + Boltz BTC↔USDC Atomic Swap Broker
+ * v2.0.0 — doctrine reclass: hashrate routing removed per Hive supreme rules.
+ * Precedent: hive-swarm-trader → hive-swarm-signal-relay.
+ *
+ * Hive does NOT route hashrate. Hive does NOT custody BTC.
+ * This service is read-only MOS telemetry plus atomic-swap broker only.
  *
  * Backend: https://hivemorph.onrender.com
  * Spec   : MCP 2024-11-05 / Streamable-HTTP / JSON-RPC 2.0
  * Brand  : Hive Civilization gold #C08D23 (Pantone 1245 C)
  *
- * v1.1.0: Added 3 MOS tools wrapping /v1/mining/orchestrate/* endpoints:
- *   mos.query_hashrate  — GET /v1/mining/orchestrate/sites (Tier1 $0.001)
- *   mos.query_payouts   — GET /v1/mining/orchestrate/payouts (Tier1 $0.001)
- *   mos.book_hashrate   — POST /v1/mining/book (existing, Tier3 $0.05)
+ * Tools (5):
+ *   mos.query_sites    — GET /v1/mining/orchestrate/sites (Tier1 $0.001)
+ *   mos.query_payouts  — GET /v1/mining/orchestrate/payouts (Tier1 $0.001)
+ *   bitcoin_fee_advice — GET /v1/mining/fee-intel (Tier2 $0.02)
+ *   next_block_forecast — GET /v1/mining/next-block-advice (Tier2 $0.03)
+ *   payout_btc_to_usdc — POST /v1/mining/payout — Boltz atomic swap (Tier3)
  *
- * Updated agent.json A2A card with:
- *   - x402 metadata (price per call, treasury, settle_chain=base, settle_asset=USDC)
- *   - OAC JSON-LD (schema.org/Service)
- *   - 'mining-orchestrate' capability tag
- *   - Brand gold #C08D23
+ * KILLED routes (410 Gone):
+ *   /v1/hashrate/*  /mining/route  /mining/book  hashrate-booking
+ *   Tools removed: list_rigs, quote_hashrate, book_hashrate,
+ *                  mining_pnl, mining_economics, mos.book_hashrate
  */
 
 import express from 'express';
@@ -29,20 +33,26 @@ app.use(express.json({ limit: '256kb' }));
 const PORT = process.env.PORT || 3000;
 const HIVE_BASE = process.env.HIVE_BASE || 'https://hivemorph.onrender.com';
 
-// ─── Tool definitions (11 in v1.1.0) ────────────────────────────────────────
+// ─── 410 Gone — hashrate routing doctrine kill ───────────────────────────────
+const HASHRATE_GONE = {
+  error: 'gone',
+  reason: 'hashrate routing removed per Hive doctrine — see swarm-trader→signal-relay reclass precedent',
+};
+
+// ─── Tool definitions (5 doctrine-clean tools) ───────────────────────────────
 const TOOLS = [
-  // ── MOS tools (new in v1.1.0) ─────────────────────────────────────────────
+  // ── MOS Telemetry (read-only Tether MOS) ─────────────────────────────────
   {
-    name: 'mos.query_hashrate',
+    name: 'mos.query_sites',
     description:
-      'Query an operator\'s registered MOS sites and latest hashrate telemetry via the Hive orchestration layer. Tier 1 — $0.001 USDC. Returns site list, hashrate_th_s, worker count, and telemetry snapshots. Backend: GET /v1/mining/orchestrate/sites.',
+      'Query an operator\'s registered Tether MOS sites and latest site telemetry via the Hive orchestration layer. Read-only. Tier 1 — $0.001 USDC. Returns site list, worker count, and telemetry snapshots. Partner: Tether MOS. Backend: GET /v1/mining/orchestrate/sites.',
     inputSchema: {
       type: 'object',
       required: ['operator_did'],
       properties: {
         operator_did: {
           type: 'string',
-          description: 'Operator DID registered with Hive MOS (e.g. did:hive:miner-us-east-1 or did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK). Obtain via POST /v1/mining/orchestrate/operator/register or from your MOS fleet dashboard.',
+          description: 'Operator DID registered with Hive MOS (e.g. did:hive:miner-us-east-1 or did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK). Obtain via your MOS fleet dashboard.',
         },
       },
     },
@@ -50,7 +60,7 @@ const TOOLS = [
   {
     name: 'mos.query_payouts',
     description:
-      'Get an operator\'s pending USDC payout balance from the Hive earn rails ledger. Tier 1 — $0.001 USDC. Returns pending_usdc, settle_chain=base, settle_asset=USDC, payout_threshold_usdc. Backend: GET /v1/mining/orchestrate/payouts.',
+      'Get an operator\'s pending USDC payout balance from the Hive earn rails ledger. Read-only. Tier 1 — $0.001 USDC. Returns pending_usdc, settle_chain=base, settle_asset=USDC, payout_threshold_usdc. Partner: Tether MOS. Backend: GET /v1/mining/orchestrate/payouts.',
     inputSchema: {
       type: 'object',
       required: ['operator_did'],
@@ -62,99 +72,24 @@ const TOOLS = [
       },
     },
   },
-  {
-    name: 'mos.book_hashrate',
-    description:
-      'Book hashrate demand against the Hive mining engine. Tier 3 — $0.05 USDC gate + 2% routing fee. Three gates enforced (NEED + YIELD + CLEAN-MONEY). Real EIP-191 receipt by Evaluator wallet. Settlement via x402 Base USDC. Backend: POST /v1/mining/book.',
-    inputSchema: {
-      type: 'object',
-      required: ['buyer_did', 'th_per_day', 'max_price_usdc'],
-      properties: {
-        buyer_did: {
-          type: 'string',
-          description: 'Buyer DID or 0x EVM address.',
-        },
-        th_per_day: {
-          type: 'number',
-          description: 'Hashrate to book in TH/day.',
-          exclusiveMinimum: 0,
-        },
-        max_price_usdc: {
-          type: 'number',
-          description: 'Maximum price in USDC the buyer is willing to pay per TH/day.',
-          exclusiveMinimum: 0,
-        },
-        worker_id: {
-          type: 'string',
-          description: 'Optional: specific worker ID to book. If omitted, best available is chosen.',
-          default: 'hive-mdk-stub-001',
-        },
-        settle_asset: {
-          type: 'string',
-          enum: ['USDC', 'USDT'],
-          default: 'USDC',
-        },
-      },
-    },
-  },
-  {
-    name: 'list_rigs',
-    description:
-      'List all active Bitcoin mining workers (Tether MDK fleets + Hive auction). Tier 0 — discovery is free. Returns hashrate, energy cost per kWh, region, and operator for each rig.',
-    inputSchema: { type: 'object', properties: {} },
-  },
-  {
-    name: 'quote_hashrate',
-    description:
-      'Rank destinations for a fleet against the current rig market. Tier 0 — query is free; the 2% routing fee is taken at /book. Returns ranked list with margin estimates so callers can pick best $/TH/day.',
-    inputSchema: {
-      type: 'object',
-      required: ['energy_cost_usdc_per_kwh', 'fleet_size_th_s'],
-      properties: {
-        energy_cost_usdc_per_kwh: { type: 'number', description: 'Caller fleet energy cost in USDC/kWh', exclusiveMinimum: 0 },
-        region: { type: 'string', description: 'Optional region affinity (e.g. us-tx-permian)', default: 'any' },
-        fleet_size_th_s: { type: 'number', description: 'Caller fleet size in TH/s', exclusiveMinimum: 0 },
-      },
-    },
-  },
-  {
-    name: 'book_hashrate',
-    description:
-      'Book hashrate against a worker. $0.05 USDC at the gate; 2% routing fee on top. Three gates enforced: NEED + YIELD + CLEAN-MONEY. Real EIP-191 signed receipt by the Evaluator wallet — no mocks.',
-    inputSchema: {
-      type: 'object',
-      required: ['worker_id', 'hashrate_th_s', 'duration_minutes', 'payer_address'],
-      properties: {
-        worker_id: { type: 'string' },
-        hashrate_th_s: { type: 'number', exclusiveMinimum: 0 },
-        duration_minutes: { type: 'integer', exclusiveMinimum: 0, maximum: 60 * 24 * 30 },
-        payer_address: { type: 'string', description: '0x… EVM address paying for the hashrate' },
-        settle_asset: { type: 'string', enum: ['USDC', 'USDT'], default: 'USDC' },
-      },
-    },
-  },
-  {
-    name: 'mining_pnl',
-    description:
-      'Cumulative routing fee P&L from /v1/mining/book. Tier 0 — free read. Returns every booking row plus the running total in USDC.',
-    inputSchema: { type: 'object', properties: {} },
-  },
+  // ── Bitcoin fee intel (read-only) ─────────────────────────────────────────
   {
     name: 'bitcoin_fee_advice',
     description:
-      'Bortlesboat-attributed Bitcoin mempool fee landscape + nextblock candidate pool. $0.02 USDC. Real Base USDC settlement of the upstream cdp-bitcoinsapi-com calls — every response carries a consume_tx hash for audit.',
+      'Bortlesboat-attributed Bitcoin mempool fee landscape + nextblock candidate pool. Tier 2 — $0.02 USDC. Real Base USDC settlement of the upstream cdp-bitcoinsapi-com calls — every response carries a consume_tx hash for audit.',
     inputSchema: { type: 'object', properties: {} },
   },
   {
     name: 'next_block_forecast',
     description:
-      'Combines our auction state with Bortlesboat /ai/fees/advice to forecast the next-block fee window. $0.03 USDC. Useful for fee-sensitive submitters timing their BTC tx.',
+      'Combines Hive telemetry with Bortlesboat /ai/fees/advice to forecast the next-block fee window. Tier 2 — $0.03 USDC. Useful for fee-sensitive BTC tx submitters timing their submissions.',
     inputSchema: { type: 'object', properties: {} },
   },
+  // ── Boltz BTC↔USDC atomic swap broker ────────────────────────────────────
   {
     name: 'payout_btc_to_usdc',
     description:
-      'Boltz reverse swap: deposit BTC at the returned HTLC address, recipient gets USDC on Base. Atomic — Hive never custodies BTC. 40bps Hive spread fee taken from the swap output. Returns 503 with rail_inactive when HIVE_BOLTZ_ENABLED=0.',
+      'Boltz reverse swap: deposit BTC at the returned HTLC address, recipient gets USDC on Base. Atomic — Hive never custodies BTC. Partner: Boltz. 40bps Hive spread fee taken from the swap output. Returns 503 with rail_inactive when HIVE_BOLTZ_ENABLED=0.',
     inputSchema: {
       type: 'object',
       required: ['btc_amount_sats', 'recipient_usdc_address'],
@@ -164,34 +99,39 @@ const TOOLS = [
       },
     },
   },
-  {
-    name: 'mining_economics',
-    description:
-      'Today and cumulative Hive routing-fee revenue plus daily Bortlesboat data spend (against the MINING_SATOSHI_DAILY_BUDGET_USD cap). Tier 0 — free read. Use to monitor budget headroom.',
-    inputSchema: { type: 'object', properties: {} },
-  },
 ];
 
+// ── DEPRECATED tools (410 doctrine kill) — surfaced for transparency ─────────
+const DEPRECATED_TOOLS = [
+  { name: 'list_rigs',          status: 'DEPRECATED', description: 'Removed per doctrine — see swarm-trader→signal-relay reclass' },
+  { name: 'quote_hashrate',     status: 'DEPRECATED', description: 'Removed per doctrine — see swarm-trader→signal-relay reclass' },
+  { name: 'book_hashrate',      status: 'DEPRECATED', description: 'Removed per doctrine — see swarm-trader→signal-relay reclass' },
+  { name: 'mining_pnl',         status: 'DEPRECATED', description: 'Removed per doctrine — see swarm-trader→signal-relay reclass' },
+  { name: 'mining_economics',   status: 'DEPRECATED', description: 'Removed per doctrine — see swarm-trader→signal-relay reclass' },
+  { name: 'mos.book_hashrate',  status: 'DEPRECATED', description: 'Removed per doctrine — see swarm-trader→signal-relay reclass' },
+];
 
 const SERVICE_CFG = {
   service: "hive-mcp-mining",
-  shortName: "HiveMining",
-  title: "HiveMining \u00b7 Mining Intelligence & DePIN Hashrate Routing MCP",
-  tagline: "Hashrate routing, MOS telemetry, Boltz BTC\u2194USDC swap. Real rails, three gates.",
-  description: "MCP server for HiveMining \u2014 mining intelligence and DePIN hashrate routing on the Hive Civilization. 11 tools: hashrate routing, Boltz BTC\u2194USDC payout, Bortlesboat fee intel, plus MOS hashrate / payouts / booking. USDC/USDT settlement on Base, Ethereum, or Solana. Real rails.",
-  keywords: ["mcp", "model-context-protocol", "x402", "agentic", "ai-agent", "ai-agents", "llm", "hive", "hive-civilization", "depin", "mining-intelligence", "hashrate-analytics", "mining-os", "mos", "boltz", "atomic-swap", "btc", "usdc", "usdt", "base", "base-l2", "agent-economy", "a2a"],
+  shortName: "HiveMOS",
+  title: "Tether MOS Telemetry + Boltz BTC↔USDC Atomic Swap Broker · Hive Civilization",
+  tagline: "Read-only MOS telemetry + Boltz BTC↔USDC atomic swap. No hashrate routing. No custody. Real rails.",
+  description: "MCP server for Hive — Tether MOS site telemetry (read-only) and Boltz BTC↔USDC atomic swap broker. 5 tools: MOS site queries, MOS payout queries, Bitcoin fee intel, next-block forecast, and Boltz BTC→USDC reverse swap. USDC settlement on Base L2. Hive does NOT route hashrate. Hive does NOT custody BTC.",
+  keywords: ["mcp", "model-context-protocol", "x402", "agentic", "ai-agent", "ai-agents", "llm", "hive", "hive-civilization", "tether", "mos", "mining-os", "boltz", "atomic-swap", "btc", "usdc", "usdt", "base", "base-l2", "agent-economy", "a2a"],
   externalUrl: "https://hive-mcp-mining.onrender.com",
   gatewayMount: "/mining",
-  version: "1.1.1",
+  version: "2.0.0",
   pricing: [
-    { name: "mining_query_hashrate", priceUsd: 0, label: "Query hashrate \u2014 free" },
-    { name: "mining_route_hashrate", priceUsd: 0.005, label: "Route hashrate (Tier 2)" },
-    { name: "mining_book_hashrate", priceUsd: 0.05, label: "Book hashrate (Tier 3)" },
-    { name: "mining_btc_to_usdc", priceUsd: 0.05, label: "Boltz BTC\u2192USDC (Tier 3)" }
+    { name: "mos_query_sites",    priceUsd: 0.001, label: "MOS site telemetry (Tier 1)" },
+    { name: "mos_query_payouts",  priceUsd: 0.001, label: "MOS payout query (Tier 1)" },
+    { name: "bitcoin_fee_advice", priceUsd: 0.02,  label: "Bitcoin fee advice (Tier 2)" },
+    { name: "next_block_forecast",priceUsd: 0.03,  label: "Next-block forecast (Tier 2)" },
+    { name: "payout_btc_to_usdc", priceUsd: 0,     label: "Boltz BTC→USDC swap (40bps spread)" },
   ],
 };
 SERVICE_CFG.tools = (typeof TOOLS !== 'undefined' ? TOOLS : []).map(t => ({ name: t.name, description: t.description }));
-// ─── HTTP helpers ────────────────────────────────────────────────────────────
+
+// ─── HTTP helpers ─────────────────────────────────────────────────────────────
 async function hiveGet(path, params = {}) {
   const url = new URL(`${HIVE_BASE}${path.startsWith('/') ? path : '/' + path}`);
   Object.entries(params).forEach(([k, v]) => v != null && url.searchParams.set(k, v));
@@ -216,11 +156,11 @@ function asText(payload) {
   return { type: 'text', text: JSON.stringify(payload, null, 2) };
 }
 
-// ─── Tool execution ──────────────────────────────────────────────────────────
+// ─── Tool execution ───────────────────────────────────────────────────────────
 async function executeTool(name, args) {
   switch (name) {
-    // ── MOS tools (v1.1.0) ────────────────────────────────────────────────
-    case 'mos.query_hashrate': {
+    // ── MOS Telemetry ─────────────────────────────────────────────────────
+    case 'mos.query_sites': {
       const { status, data } = await hiveGet('/v1/mining/orchestrate/sites', {
         operator_did: args.operator_did,
       });
@@ -232,55 +172,7 @@ async function executeTool(name, args) {
       });
       return asText({ status, ...data });
     }
-    case 'mos.book_hashrate': {
-      // Resolve worker_id: use explicit arg or pick first available via scan
-      let workerId = args.worker_id;
-      if (!workerId) {
-        try {
-          const scan = await hiveGet('/v1/mining/scan');
-          const workers = scan.data?.workers ?? [];
-          const open = workers.find((w) => w.state === 'OPEN');
-          workerId = open?.seller_id ?? 'hive-mdk-stub-001';
-        } catch { workerId = 'hive-mdk-stub-001'; }
-      }
-      const duration_minutes = Math.ceil((args.th_per_day / 1440) * 60) || 60;
-      const { status, data } = await hivePost('/v1/mining/book', {
-        worker_id: workerId,
-        hashrate_th_s: args.th_per_day,
-        duration_minutes,
-        payer_address: /^0x[0-9a-fA-F]{40}$/.test(args.buyer_did)
-          ? args.buyer_did
-          : '0x15184bf50b3d3f52b60434f8942b7d52f2eb436e',
-        settle_asset: args.settle_asset || 'USDC',
-      });
-      return asText({ status, ...data });
-    }
-    case 'list_rigs': {
-      const { status, data } = await hiveGet('/v1/mining/scan');
-      return asText({ status, ...data });
-    }
-    case 'quote_hashrate': {
-      const { status, data } = await hivePost('/v1/mining/route', {
-        energy_cost_usdc_per_kwh: args.energy_cost_usdc_per_kwh,
-        region: args.region || 'any',
-        fleet_size_th_s: args.fleet_size_th_s,
-      });
-      return asText({ status, ...data });
-    }
-    case 'book_hashrate': {
-      const { status, data } = await hivePost('/v1/mining/book', {
-        worker_id: args.worker_id,
-        hashrate_th_s: args.hashrate_th_s,
-        duration_minutes: args.duration_minutes,
-        payer_address: args.payer_address,
-        settle_asset: args.settle_asset || 'USDC',
-      });
-      return asText({ status, ...data });
-    }
-    case 'mining_pnl': {
-      const { status, data } = await hiveGet('/v1/mining/pnl');
-      return asText({ status, ...data });
-    }
+    // ── Bitcoin fee intel ─────────────────────────────────────────────────
     case 'bitcoin_fee_advice': {
       const { status, data } = await hiveGet('/v1/mining/fee-intel');
       return asText({ status, ...data });
@@ -289,6 +181,7 @@ async function executeTool(name, args) {
       const { status, data } = await hiveGet('/v1/mining/next-block-advice');
       return asText({ status, ...data });
     }
+    // ── Boltz BTC↔USDC atomic swap broker ────────────────────────────────
     case 'payout_btc_to_usdc': {
       const { status, data } = await hivePost('/v1/mining/payout', {
         btc_amount_sats: args.btc_amount_sats,
@@ -296,16 +189,20 @@ async function executeTool(name, args) {
       });
       return asText({ status, ...data });
     }
-    case 'mining_economics': {
-      const { status, data } = await hiveGet('/v1/mining/economics');
-      return asText({ status, ...data });
-    }
+    // ── KILLED tools — doctrine 410 ───────────────────────────────────────
+    case 'list_rigs':
+    case 'quote_hashrate':
+    case 'book_hashrate':
+    case 'mining_pnl':
+    case 'mining_economics':
+    case 'mos.book_hashrate':
+      throw Object.assign(new Error('gone'), { code: 410, gone: true, detail: HASHRATE_GONE });
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
 }
 
-// ─── MCP JSON-RPC handler ────────────────────────────────────────────────────
+// ─── MCP JSON-RPC handler ─────────────────────────────────────────────────────
 app.post('/mcp', async (req, res) => {
   const { jsonrpc, id, method, params } = req.body || {};
   if (jsonrpc !== '2.0') return res.json({ jsonrpc: '2.0', id, error: { code: -32600, message: 'Invalid JSON-RPC' } });
@@ -319,17 +216,33 @@ app.post('/mcp', async (req, res) => {
             capabilities: { tools: { listChanged: false } },
             serverInfo: {
               name: 'hive-mcp-mining',
-              version: '1.1.0',
-              description: 'Bitcoin hashrate routing across Tether MDK fleets + Hive auction. MOS orchestration (v1.1.0). Real Bortlesboat-attributed fee intel. Boltz BTC↔USDC payout (atomic swap, never custody). 11 tools.',
+              version: '2.0.0',
+              description: 'Tether MOS telemetry + Boltz BTC↔USDC atomic swap broker. Read-only MOS site queries + payout queries + Bitcoin fee intel + Boltz reverse swap. Hive does NOT route hashrate. 5 tools.',
             },
           },
         });
       case 'tools/list':
-        return res.json({ jsonrpc: '2.0', id, result: { tools: TOOLS } });
+        return res.json({
+          jsonrpc: '2.0', id,
+          result: {
+            tools: TOOLS,
+            deprecated: DEPRECATED_TOOLS,
+          },
+        });
       case 'tools/call': {
         const { name, arguments: args } = params || {};
-        const out = await executeTool(name, args || {});
-        return res.json({ jsonrpc: '2.0', id, result: { content: [out] } });
+        try {
+          const out = await executeTool(name, args || {});
+          return res.json({ jsonrpc: '2.0', id, result: { content: [out] } });
+        } catch (err) {
+          if (err.gone) {
+            return res.json({
+              jsonrpc: '2.0', id,
+              error: { code: 410, message: 'Gone', data: HASHRATE_GONE },
+            });
+          }
+          throw err;
+        }
       }
       case 'ping':
         return res.json({ jsonrpc: '2.0', id, result: {} });
@@ -341,20 +254,44 @@ app.post('/mcp', async (req, res) => {
   }
 });
 
-// ─── Discovery + health ──────────────────────────────────────────────────────
+// ─── 410 Gone — hashrate routing kill routes ──────────────────────────────────
+// Any /v1/hashrate/*, /mining/route, /mining/book, hashrate-booking surface
+const hashrateKillPaths = [
+  '/v1/hashrate',
+  '/v1/hashrate/*',
+  '/mining/route',
+  '/mining/book',
+  '/hashrate-booking',
+];
+
+for (const p of hashrateKillPaths) {
+  app.all(p, (req, res) => res.status(410).json(HASHRATE_GONE));
+}
+// Wildcard kill for any /v1/hashrate/ subtree
+app.all('/v1/hashrate/*', (req, res) => res.status(410).json(HASHRATE_GONE));
+
+// ─── Discovery + health ───────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({
   status: 'ok',
   service: 'hive-mcp-mining',
-  version: '1.1.0',
+  version: '2.0.0',
+  reclass: 'doctrine: hashrate routing removed — Tether MOS telemetry + Boltz BTC↔USDC atomic swap broker only',
   backend: HIVE_BASE,
   tool_count: TOOLS.length,
+  deprecated_tool_count: DEPRECATED_TOOLS.length,
   capabilities: [
-    'mining-orchestrate',
-    'hashrate-routing',
+    'mos-telemetry',
     'boltz-btc-usdc',
     'fee-intel',
     'x402',
   ],
+  doctrine: {
+    no_hashrate_routing: true,
+    no_btc_custody: true,
+    read_only_mos: true,
+    atomic_swap_broker_only: true,
+    precedent: 'hive-swarm-trader→hive-swarm-signal-relay reclass',
+  },
   brand: '#C08D23',
   x402: {
     settle_chain: 'base',
@@ -363,17 +300,21 @@ app.get('/health', (req, res) => res.json({
   },
   boltz_status: process.env.HIVE_BOLTZ_ENABLED === '1' ? 'live' : 'inactive',
   boltz_note: 'payout_btc_to_usdc available when boltz_status=live. Check this field before calling that tool.',
-  a2a_card: `${HIVE_BASE}/v1/mining/orchestrate/health`,
-  earn_catalog: `${HIVE_BASE}/v1/earn/catalog`,
+  partners: {
+    mos: 'Tether MOS — read-only telemetry',
+    boltz: 'Boltz — BTC↔USDC atomic swap, no custody',
+  },
 }));
 
 app.get('/.well-known/mcp.json', (req, res) => res.json({
   name: 'hive-mcp-mining',
-  version: '1.1.0',
+  version: '2.0.0',
   endpoint: '/mcp',
   transport: 'streamable-http',
   protocol: '2024-11-05',
+  description: 'Tether MOS telemetry + Boltz BTC↔USDC atomic swap broker. Hive does NOT route hashrate. Hive does NOT custody BTC.',
   tools: TOOLS.map(t => ({ name: t.name, description: t.description })),
+  deprecated_tools: DEPRECATED_TOOLS,
   payment: {
     scheme: 'x402', protocol: 'x402', network: 'base',
     currency: 'USDC', asset: 'USDC',
@@ -404,6 +345,85 @@ app.get('/.well-known/mcp.json', (req, res) => res.json({
   },
 }));
 
+app.get('/.well-known/agent.json', (req, res) => res.json({
+  "@context": [
+    "https://schema.org",
+    "https://hivemorph.onrender.com/v1/a2a/context"
+  ],
+  "@type": "Service",
+  "name": "hive-mcp-mining",
+  "version": "2.0.0",
+  "description": "Tether MOS telemetry + Boltz BTC↔USDC atomic swap broker. Read-only MOS site queries, payout queries, Bitcoin fee intel, and Boltz reverse swap. Hive does NOT route hashrate. Hive does NOT custody BTC. 5 doctrine-clean tools.",
+  "reclass": {
+    "from": "hashrate routing + MOS + Boltz",
+    "to": "MOS telemetry (read-only) + Boltz atomic swap broker",
+    "date": "2026-04-29",
+    "precedent": "hive-swarm-trader → hive-swarm-signal-relay",
+    "doctrine": "HASHRATE permanently forbidden per Hive supreme rules",
+  },
+  "url": "https://github.com/srotzin/hive-mcp-mining",
+  "provider": {
+    "@type": "Organization",
+    "name": "Hive",
+    "url": "https://hivemorph.onrender.com",
+    "email": "hive@hivemorph.ai"
+  },
+  "license": "https://opensource.org/licenses/MIT",
+  "brand": {
+    "color": "#C08D23"
+  },
+  "partners": {
+    "mos": "Tether MOS — read-only telemetry partner",
+    "boltz": "Boltz — BTC↔USDC atomic swap partner, no custody"
+  },
+  "capabilities": [
+    "mos-telemetry",
+    "boltz-btc-usdc",
+    "fee-intel",
+    "x402",
+    "a2a",
+    "mcp"
+  ],
+  "doctrine": {
+    "no_hashrate_routing": true,
+    "no_btc_custody": true,
+    "read_only_mos": true,
+    "forbidden": ["HASHRATE", "GAS", "GPU-PERP", "energy-futures"],
+    "clean_money": "brand-attributed + no custody"
+  },
+  "x402": {
+    "settle_chain": "base",
+    "settle_asset": "USDC",
+    "treasury": "0x15184bf50b3d3f52b60434f8942b7d52f2eb436e",
+    "pricing": {
+      "mos.query_sites":     { "tier": "Tier1", "price_usd": 0.001, "backend": "GET /v1/mining/orchestrate/sites" },
+      "mos.query_payouts":   { "tier": "Tier1", "price_usd": 0.001, "backend": "GET /v1/mining/orchestrate/payouts" },
+      "bitcoin_fee_advice":  { "tier": "Tier2", "price_usd": 0.02,  "backend": "GET /v1/mining/fee-intel" },
+      "next_block_forecast": { "tier": "Tier2", "price_usd": 0.03,  "backend": "GET /v1/mining/next-block-advice" },
+      "payout_btc_to_usdc":  { "tier": "Tier3", "price_usd": 0,     "backend": "POST /v1/mining/payout" }
+    }
+  },
+  "a2a": {
+    "mcp_endpoint": "https://hive-mcp-mining.onrender.com/mcp",
+    "protocol": "2024-11-05",
+    "transport": "streamable-http"
+  },
+  "tools": [
+    { "name": "mos.query_sites",     "tier": "Tier1", "price_usd": 0.001, "description": "Query operator Tether MOS sites and telemetry (read-only)" },
+    { "name": "mos.query_payouts",   "tier": "Tier1", "price_usd": 0.001, "description": "Get operator pending USDC payout balance (read-only)" },
+    { "name": "bitcoin_fee_advice",  "tier": "Tier2", "price_usd": 0.02,  "description": "Bortlesboat BTC mempool fee landscape (real USDC settlement)" },
+    { "name": "next_block_forecast", "tier": "Tier2", "price_usd": 0.03,  "description": "Next-block fee forecast with Bortlesboat" },
+    { "name": "payout_btc_to_usdc",  "tier": "Tier3", "price_usd": 0,     "description": "Boltz BTC→USDC reverse swap (40bps spread, no custody)" }
+  ],
+  "deprecated_tools": [
+    { "name": "list_rigs",         "status": "DEPRECATED", "description": "Removed per doctrine — see swarm-trader→signal-relay reclass" },
+    { "name": "quote_hashrate",    "status": "DEPRECATED", "description": "Removed per doctrine — see swarm-trader→signal-relay reclass" },
+    { "name": "book_hashrate",     "status": "DEPRECATED", "description": "Removed per doctrine — see swarm-trader→signal-relay reclass" },
+    { "name": "mining_pnl",        "status": "DEPRECATED", "description": "Removed per doctrine — see swarm-trader→signal-relay reclass" },
+    { "name": "mining_economics",  "status": "DEPRECATED", "description": "Removed per doctrine — see swarm-trader→signal-relay reclass" },
+    { "name": "mos.book_hashrate", "status": "DEPRECATED", "description": "Removed per doctrine — see swarm-trader→signal-relay reclass" }
+  ]
+}));
 
 // HIVE_META_BLOCK_v1 — comprehensive meta tags + JSON-LD + crawler discovery
 app.get('/', (req, res) => {
@@ -426,9 +446,9 @@ app.get('/seo.json', (req, res) => res.json(seoJson(SERVICE_CFG)));
 app.get('/.well-known/agent-card.json', (req, res) => res.json({
   protocolVersion: '0.3.0',
   name: 'hive-mcp-mining',
-  description: "Hive Civilization mining MCP — pay-per-mine cooperative pool routing with x402 USDC settlement.",
+  description: "Hive Civilization — Tether MOS telemetry + Boltz BTC↔USDC atomic swap broker MCP. Read-only. No custody. No hashrate routing.",
   url: 'https://hive-mcp-mining.onrender.com',
-  version: '1.1.2',
+  version: '2.0.0',
   provider: { organization: 'Hive Civilization', url: 'https://hiveagentiq.com' },
   capabilities: { streaming: false, pushNotifications: false },
   defaultInputModes: ['application/json'],
@@ -461,7 +481,8 @@ app.get('/.well-known/ap2.json', (req, res) => res.json({
 }));
 
 app.listen(PORT, () => {
-  console.log(`HiveMining MCP Server v1.1.0 running on :${PORT}`);
+  console.log(`hive-mcp-mining v2.0.0 — Tether MOS Telemetry + Boltz BTC↔USDC Atomic Swap Broker`);
   console.log(`  Backend : ${HIVE_BASE}`);
-  console.log(`  Tools   : ${TOOLS.length}`);
+  console.log(`  Tools   : ${TOOLS.length} (doctrine-clean)`);
+  console.log(`  Killed  : ${DEPRECATED_TOOLS.length} tools (hashrate routing — 410 Gone)`);
 });

@@ -5,8 +5,15 @@
   ],
   "@type": "Service",
   "name": "hive-mcp-mining",
-  "version": "1.1.0",
-  "description": "MCP server for the Hive Mining vertical. 11 tools covering Bitcoin hashrate routing (Tether MDK fleets + Hive auction), Bortlesboat-attributed fee intel, Boltz BTC↔USDC payout, and 3 new MOS orchestration tools (mos.query_hashrate, mos.query_payouts, mos.book_hashrate).",
+  "version": "2.0.0",
+  "description": "Tether MOS telemetry + Boltz BTC↔USDC atomic swap broker. Read-only MOS site queries, payout queries, Bitcoin fee intel, and Boltz reverse swap. Hive does NOT route hashrate. Hive does NOT custody BTC. 5 doctrine-clean tools.",
+  "reclass": {
+    "from": "hashrate routing + MOS + Boltz",
+    "to": "MOS telemetry (read-only) + Boltz atomic swap broker",
+    "date": "2026-04-29",
+    "precedent": "hive-swarm-trader → hive-swarm-signal-relay",
+    "doctrine": "HASHRATE permanently forbidden per Hive supreme rules"
+  },
   "url": "https://github.com/srotzin/hive-mcp-mining",
   "provider": {
     "@type": "Organization",
@@ -18,127 +25,55 @@
   "brand": {
     "color": "#C08D23"
   },
+  "partners": {
+    "mos": "Tether MOS — read-only telemetry partner",
+    "boltz": "Boltz — BTC↔USDC atomic swap partner, no custody"
+  },
   "capabilities": [
-    "mining-orchestrate",
-    "hashrate-routing",
+    "mos-telemetry",
     "boltz-btc-usdc",
     "fee-intel",
     "x402",
     "a2a",
     "mcp"
   ],
+  "doctrine": {
+    "no_hashrate_routing": true,
+    "no_btc_custody": true,
+    "read_only_mos": true,
+    "forbidden": ["HASHRATE", "GAS", "GPU-PERP", "energy-futures"],
+    "clean_money": "brand-attributed + no custody"
+  },
   "x402": {
     "settle_chain": "base",
     "settle_asset": "USDC",
     "treasury": "0x15184bf50b3d3f52b60434f8942b7d52f2eb436e",
-    "routing_fee_rate": 0.02,
     "pricing": {
-      "mos.query_hashrate": {
-        "tier": "Tier1",
-        "price_usd": 0.001,
-        "backend": "GET /v1/mining/orchestrate/sites"
-      },
-      "mos.query_payouts": {
-        "tier": "Tier1",
-        "price_usd": 0.001,
-        "backend": "GET /v1/mining/orchestrate/payouts"
-      },
-      "mos.book_hashrate": {
-        "tier": "Tier3",
-        "price_usd": 0.05,
-        "backend": "POST /v1/mining/book"
-      },
-      "book_hashrate": {
-        "tier": "Tier3",
-        "price_usd": 0.05,
-        "backend": "POST /v1/mining/book"
-      },
-      "bitcoin_fee_advice": {
-        "tier": "Tier2",
-        "price_usd": 0.02,
-        "backend": "GET /v1/mining/fee-intel"
-      },
-      "next_block_forecast": {
-        "tier": "Tier2",
-        "price_usd": 0.03,
-        "backend": "GET /v1/mining/next-block-advice"
-      }
+      "mos.query_sites":     { "tier": "Tier1", "price_usd": 0.001, "backend": "GET /v1/mining/orchestrate/sites" },
+      "mos.query_payouts":   { "tier": "Tier1", "price_usd": 0.001, "backend": "GET /v1/mining/orchestrate/payouts" },
+      "bitcoin_fee_advice":  { "tier": "Tier2", "price_usd": 0.02,  "backend": "GET /v1/mining/fee-intel" },
+      "next_block_forecast": { "tier": "Tier2", "price_usd": 0.03,  "backend": "GET /v1/mining/next-block-advice" },
+      "payout_btc_to_usdc":  { "tier": "Tier3", "price_usd": 0,     "backend": "POST /v1/mining/payout" }
     }
   },
   "a2a": {
-    "card_url": "https://hivemorph.onrender.com/v1/mining/orchestrate/health",
-    "mcp_endpoint": "https://hive-mcp-gateway.onrender.com/mining/mcp",
+    "mcp_endpoint": "https://hive-mcp-mining.onrender.com/mcp",
     "protocol": "2024-11-05",
-    "transport": "streamable-http",
-    "catalog": "https://hivemorph.onrender.com/v1/earn/catalog",
-    "mos_plugin": "https://github.com/srotzin/hive-mos-plugin"
+    "transport": "streamable-http"
   },
   "tools": [
-    {
-      "name": "mos.query_hashrate",
-      "tier": "Tier1",
-      "price_usd": 0.001,
-      "description": "Query operator MOS sites and latest hashrate telemetry"
-    },
-    {
-      "name": "mos.query_payouts",
-      "tier": "Tier1",
-      "price_usd": 0.001,
-      "description": "Get operator pending USDC payout balance"
-    },
-    {
-      "name": "mos.book_hashrate",
-      "tier": "Tier3",
-      "price_usd": 0.05,
-      "description": "Book hashrate demand (buyer_did, th_per_day, max_price_usdc)"
-    },
-    {
-      "name": "list_rigs",
-      "tier": "Tier0",
-      "price_usd": 0.0,
-      "description": "List all active MDK + auction mining workers"
-    },
-    {
-      "name": "quote_hashrate",
-      "tier": "Tier0",
-      "price_usd": 0.0,
-      "description": "Rank destinations for a fleet (fee taken at book)"
-    },
-    {
-      "name": "book_hashrate",
-      "tier": "Tier3",
-      "price_usd": 0.05,
-      "description": "Book hashrate against a worker (2% routing fee)"
-    },
-    {
-      "name": "mining_pnl",
-      "tier": "Tier0",
-      "price_usd": 0.0,
-      "description": "Cumulative routing fee P&L"
-    },
-    {
-      "name": "bitcoin_fee_advice",
-      "tier": "Tier2",
-      "price_usd": 0.02,
-      "description": "Bortlesboat fee landscape (real USDC settlement)"
-    },
-    {
-      "name": "next_block_forecast",
-      "tier": "Tier2",
-      "price_usd": 0.03,
-      "description": "Next-block forecast with auction state + Bortlesboat"
-    },
-    {
-      "name": "payout_btc_to_usdc",
-      "tier": "Tier0",
-      "price_usd": 0.0,
-      "description": "Boltz BTC→USDC reverse swap (40bps spread fee)"
-    },
-    {
-      "name": "mining_economics",
-      "tier": "Tier0",
-      "price_usd": 0.0,
-      "description": "Today and cumulative routing revenue + data spend"
-    }
+    { "name": "mos.query_sites",     "tier": "Tier1", "price_usd": 0.001, "description": "Query operator Tether MOS sites and telemetry (read-only)" },
+    { "name": "mos.query_payouts",   "tier": "Tier1", "price_usd": 0.001, "description": "Get operator pending USDC payout balance (read-only)" },
+    { "name": "bitcoin_fee_advice",  "tier": "Tier2", "price_usd": 0.02,  "description": "Bortlesboat BTC mempool fee landscape (real USDC settlement)" },
+    { "name": "next_block_forecast", "tier": "Tier2", "price_usd": 0.03,  "description": "Next-block fee forecast with Bortlesboat" },
+    { "name": "payout_btc_to_usdc",  "tier": "Tier3", "price_usd": 0,     "description": "Boltz BTC→USDC reverse swap (40bps spread, no custody)" }
+  ],
+  "deprecated_tools": [
+    { "name": "list_rigs",         "status": "DEPRECATED", "description": "Removed per doctrine — see swarm-trader→signal-relay reclass" },
+    { "name": "quote_hashrate",    "status": "DEPRECATED", "description": "Removed per doctrine — see swarm-trader→signal-relay reclass" },
+    { "name": "book_hashrate",     "status": "DEPRECATED", "description": "Removed per doctrine — see swarm-trader→signal-relay reclass" },
+    { "name": "mining_pnl",        "status": "DEPRECATED", "description": "Removed per doctrine — see swarm-trader→signal-relay reclass" },
+    { "name": "mining_economics",  "status": "DEPRECATED", "description": "Removed per doctrine — see swarm-trader→signal-relay reclass" },
+    { "name": "mos.book_hashrate", "status": "DEPRECATED", "description": "Removed per doctrine — see swarm-trader→signal-relay reclass" }
   ]
 }
