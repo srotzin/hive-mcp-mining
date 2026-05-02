@@ -1,18 +1,18 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.srotzin/hive-mcp-mining",
-  "title": "Tether MOS Telemetry + Boltz BTC↔USDC Atomic Swap Broker",
-  "description": "Tether MOS telemetry + Boltz BTC↔USDC atomic swap broker MCP — read-only, no custody · Hive Civilization",
-  "version": "2.0.0",
-  "websiteUrl": "https://hive-mcp-mining.onrender.com",
-  "remotes": [
-    {
-      "url": "https://hive-mcp-mining.onrender.com/mcp",
-      "type": "streamable-http"
-    }
-  ],
+  "description": "Bitcoin hashrate routing \u2014 Tether MDK fleets and Hive auction. Three-gate booking, x402 USDC.",
+  "title": "Hive Mcp Mining",
+  "version": "1.0.0",
   "repository": {
     "url": "https://github.com/srotzin/hive-mcp-mining",
     "source": "github"
-  }
+  },
+  "websiteUrl": "https://thehiveryiq.com",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://hive-mcp-mining.onrender.com/mcp"
+    }
+  ]
 }
