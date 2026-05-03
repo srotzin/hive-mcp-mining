@@ -1,7 +1,7 @@
 {
   "name": "hive-mcp-mining",
   "version": "2.0.0",
-  "description": "Tether MOS telemetry + Boltz BTC↔USDC atomic swap broker MCP — read-only, no custody · Hive Civilization",
+  "description": "Tether MOS telemetry + Boltz BTC\u2194USDC atomic swap broker MCP \u2014 read-only, no custody \u00b7 Hive Civilization",
   "type": "module",
   "main": "server.js",
   "bin": {
@@ -47,6 +47,7 @@
     "node": ">=18"
   },
   "dependencies": {
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "@noble/ed25519": "^2.1.0"
   }
 }
