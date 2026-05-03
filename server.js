@@ -480,6 +480,82 @@ app.get('/.well-known/ap2.json', (req, res) => res.json({
   bogo: { first_call_free: true, loyalty_threshold: 6, claim_with: 'x-hive-did header' }
 }));
 
+// ─── /llms.txt — agent discovery (llmstxt.org convention) ────────────────────
+app.get('/llms.txt', (req, res) => {
+  res.type('text/plain; charset=utf-8').send(`# HiveMining MCP
+> MCP shim for Tether MOS telemetry and Boltz BTC⇔USDC atomic-swap brokering within the Hive Civilization federation.
+
+## What this is
+hive-mcp-mining is the Model Context Protocol server for Hive mining-adjacent operations.
+It exposes ${TOOLS.length} doctrine-clean MCP tools: read-only Tether MOS site and payout telemetry,
+Bitcoin mempool fee intelligence, next-block forecasting, and Boltz atomic-swap BTC⇔USDC brokering.
+Hive does NOT route hashrate. Hive does NOT custody BTC.
+Backend: ${HIVE_BASE}/v1/mining/*
+
+## Hive Civilization context
+hive-mcp-mining is one node in the Hive Civilization federation — a fleet of agent-facing
+microservices designed to be fully autonomous-agent navigable.
+Doctrine reclass: swarm-trader → signal-relay precedent; hashrate routing permanently removed.
+Brand color: gold #C08D23 (Pantone 1245 C) — mining-specific variant of Hive gold.
+
+## Auth model
+- Free endpoints: GET /health, GET /llms.txt, GET /.well-known/mcp.json, GET /
+- MCP tool calls: POST /mcp (JSON-RPC 2.0, MCP 2024-11-05)
+- Pricing tiers on tool calls (settled via backend hivemorph):
+  - Tier 1 ($0.001 USDC): mos.query_sites, mos.query_payouts
+  - Tier 2 ($0.02 USDC): bitcoin_fee_advice
+  - Tier 2 ($0.03 USDC): next_block_forecast
+  - Tier 3 (variable): payout_btc_to_usdc (Boltz atomic swap)
+- Settles to treasury 0x15184Bf50B3d3F52b60434f8942b7D52F2eB436E on Base in USDC or USDT
+- Solana rail: USDC to canonical Solana treasury address
+- First call free: add header \`x-hive-did\` to claim. 6th paid call is on the house (loyalty).
+
+## Counter-offer / barter floor
+The backend 402 envelope returns \`amount_min_usd\`. Submit any value >= that floor.
+This shim relays 402s transparently so your agent can retry with payment.
+
+## Example flow — MOS telemetry
+1. GET /health — verify MCP server is live
+2. POST /mcp { method: "tools/list" } — enumerate all ${TOOLS.length} tools
+3. POST /mcp { method: "tools/call", params: { name: "mos.query_sites", arguments: { operator_did: "did:hive:miner-us-east-1" } } }
+   → Returns site list, worker counts, and telemetry snapshots (Tier 1, $0.001)
+4. POST /mcp { name: "mos.query_payouts", arguments: { operator_did } }
+   → Returns pending_usdc, settle_chain=base, payout_threshold_usdc
+
+## Example flow — BTC fee intel + atomic swap
+1. POST /mcp { name: "bitcoin_fee_advice" }
+   → Bortlesboat-attributed mempool fee landscape + nextblock candidate pool ($0.02)
+2. POST /mcp { name: "payout_btc_to_usdc", arguments: { amount_btc, destination_usdc_address } }
+   → Boltz atomic swap: BTC → USDC, non-custodial, consume_tx hash returned for audit
+
+## Key MCP tools
+- mos.query_sites      — Tether MOS site list + telemetry (Tier 1, $0.001)
+- mos.query_payouts    — Pending USDC payout balance from earn rails ledger (Tier 1, $0.001)
+- bitcoin_fee_advice   — Bitcoin mempool fee landscape (Tier 2, $0.02)
+- next_block_forecast  — Next-block candidate pool forecast (Tier 2, $0.03)
+- payout_btc_to_usdc  — Boltz BTC⇔USDC atomic swap broker (Tier 3, variable)
+
+## Killed routes (410 Gone)
+/v1/hashrate/* — hashrate routing permanently removed per Hive doctrine.
+Do NOT attempt: list_rigs, quote_hashrate, book_hashrate, mining_pnl, mining_economics.
+
+## Sister services
+- HiveBank  (vaults + payments):  https://hivebank.onrender.com/llms.txt
+- HiveGate  (auth + onboarding):  https://hivegate.onrender.com/llms.txt
+- HiveOrigin (routing + egress):  https://hiveorigin.onrender.com/llms.txt
+- HiveMorph (morphing + attest):  https://hivemorph.onrender.com/llms.txt
+- HiveTrust (KYA + trust scores): https://hivetrust.onrender.com/llms.txt
+- HiveLens  (observability):      https://hivelens.onrender.com/llms.txt
+- HiveAttest MCP:                 https://hive-mcp-attest.onrender.com/llms.txt
+
+## License + brand
+License: MIT
+Brand color: gold #FFB800 / #C08D23 (Pantone 1245 C, mining variant)
+Treasury: 0x15184Bf50B3d3F52b60434f8942b7D52F2eB436E (Base USDC/USDT)
+Last updated: 2026-05-02
+`);
+});
+
 app.listen(PORT, () => {
   console.log(`hive-mcp-mining v2.0.0 — Tether MOS Telemetry + Boltz BTC↔USDC Atomic Swap Broker`);
   console.log(`  Backend : ${HIVE_BASE}`);
