@@ -556,6 +556,54 @@ Last updated: 2026-05-02
 `);
 });
 
+// ─── Slippery-Sticky Doctrine — no closed doors ──────────────────────────────
+// 1×1 transparent PNG favicon (always 200, never 404)
+const FAVICON_PNG = Buffer.from(
+  '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c6260010000000500010d0a2db40000000049454e44ae426082',
+  'hex'
+);
+app.get('/favicon.ico', (req, res) => {
+  res.type('image/png').set('Cache-Control', 'public, max-age=86400').send(FAVICON_PNG);
+});
+
+// /.well-known/agent.json — A2A discovery alias (canonical agent-card.json already exists)
+app.get('/.well-known/agent.json', (req, res) => {
+  res.redirect(307, '/.well-known/agent-card.json');
+});
+
+// /openapi.json — minimal OpenAPI 3.1 stub for tooling that probes it
+app.get('/openapi.json', (req, res) => {
+  res.json({
+    openapi: '3.1.0',
+    info: { title: 'hive-mcp-mining', version: '2.0.0', description: 'Hive Civilization — Tether MOS telemetry + Boltz BTC⇔USDC atomic swap broker MCP shim. Discover via /llms.txt or POST /mcp tools/list.' },
+    servers: [{ url: 'https://hive-mcp-mining.onrender.com' }],
+    paths: {
+      '/health': { get: { summary: 'Health check', responses: { '200': { description: 'OK' } } } },
+      '/llms.txt': { get: { summary: 'Agent-readable service guide', responses: { '200': { description: 'OK' } } } },
+      '/mcp': { post: { summary: 'MCP JSON-RPC 2.0 endpoint', responses: { '200': { description: 'JSON-RPC response' } } } },
+      '/.well-known/agent-card.json': { get: { summary: 'A2A agent card', responses: { '200': { description: 'OK' } } } },
+      '/.well-known/mcp.json': { get: { summary: 'MCP discovery manifest', responses: { '200': { description: 'OK' } } } }
+    }
+  });
+});
+
+// Slippery catch-all — any unknown path returns 200 + breadcrumb (never 404)
+app.use((req, res) => {
+  res.status(200).json({
+    service: 'hive-mcp-mining',
+    message: 'No closed doors — but this path is not a real endpoint. Follow the breadcrumbs.',
+    requested: req.path,
+    discover: {
+      llms_txt: '/llms.txt',
+      mcp: 'POST /mcp with JSON-RPC 2.0',
+      agent_card: '/.well-known/agent-card.json',
+      health: '/health',
+      onboard: 'https://thehiveryiq.com'
+    },
+    doctrine: 'slippery-sticky: every door 200s, body always points home'
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`hive-mcp-mining v2.0.0 — Tether MOS Telemetry + Boltz BTC↔USDC Atomic Swap Broker`);
   console.log(`  Backend : ${HIVE_BASE}`);
