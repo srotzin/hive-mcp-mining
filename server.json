@@ -1,18 +1,29 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.srotzin/hive-mcp-mining",
-  "description": "Bitcoin hashrate routing \u2014 Tether MDK fleets and Hive auction. Three-gate booking, x402 USDC.",
-  "title": "Hive Mcp Mining",
-  "version": "1.0.0",
+  "description": "Tether MOS telemetry + Boltz BTC\u2194USDC atomic swap broker MCP",
+  "title": "Hive Mining",
+  "websiteUrl": "https://thehiveryiq.com",
   "repository": {
     "url": "https://github.com/srotzin/hive-mcp-mining",
     "source": "github"
   },
-  "websiteUrl": "https://thehiveryiq.com",
+  "version": "1.1.0",
   "remotes": [
     {
       "type": "streamable-http",
-      "url": "https://hive-mcp-mining.onrender.com/mcp"
+      "url": "https://hive-mcp-gateway.onrender.com/mining/mcp"
     }
-  ]
+  ],
+  "_meta": {
+    "io.modelcontextprotocol.registry/publisher-provided": {
+      "tool": "hive-release-tool",
+      "version": "1.0.0",
+      "build_info": {
+        "stack": "hive-civilization",
+        "settlement": "USDC on Base",
+        "license": "MIT"
+      }
+    }
+  }
 }
